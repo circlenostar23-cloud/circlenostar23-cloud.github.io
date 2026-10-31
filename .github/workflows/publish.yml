@@ -1,0 +1,64 @@
+name: Publish
+run-name: Publish ${{ inputs.dispatch_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      dispatch_id:
+        description: "Shown in the run's name, so whoever started it can find it"
+        default: manual
+      keep_artifact:
+        description: "Keep the Pages artifact, to read the built output"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+    env:
+      FEED_SECRET_PATH: ${{ secrets.FEED_SECRET_PATH }}
+      SITE_BASE_URL: ${{ vars.SITE_BASE_URL }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Build the site
+        run: |
+          [ -n "$FEED_SECRET_PATH" ] && [ -n "$SITE_BASE_URL" ] || { echo "FEED_SECRET_PATH and SITE_BASE_URL must be set"; exit 1; }
+          python scripts/build_site.py
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+      - uses: actions/deploy-pages@v4
+
+      - name: Delete the Pages artifact
+        if: ${{ !inputs.keep_artifact }}
+        continue-on-error: true
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "github-pages") | .id' |
+            xargs -r -I{} gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/{}"
+
+      # After the deploy: the website's build checks each episode's audio on Pages. A failure here never fails the publish.
+      - name: Update dnlevitz.com
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.WEBSITE_DISPATCH_TOKEN }}
+        run: |
+          [ -n "$GH_TOKEN" ] || { echo "No website token; skipping"; exit 0; }
+          gh api repos/circlenostar23-cloud/dnlevitz-website/dispatches -f event_type=episode-published --silent
