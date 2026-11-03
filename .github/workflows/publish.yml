@@ -47,6 +47,19 @@ jobs:
           path: site/
       - uses: actions/deploy-pages@v4
 
+      # deploy-pages can report success while Pages keeps serving the last build (2026-11-03). Deploy once more
+      # if the live site isn't this build; if it still isn't, the run fails and keeps the artifact.
+      - name: Check the live site
+        id: live
+        continue-on-error: true
+        run: python scripts/check_live.py
+      - name: Deploy again
+        if: ${{ steps.live.outcome == 'failure' }}
+        uses: actions/deploy-pages@v4
+      - name: Check the live site again
+        if: ${{ steps.live.outcome == 'failure' }}
+        run: python scripts/check_live.py
+
       - name: Delete the Pages artifact
         if: ${{ !inputs.keep_artifact }}
         continue-on-error: true
