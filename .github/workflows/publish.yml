@@ -45,19 +45,26 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site/
-      - uses: actions/deploy-pages@v4
-
-      # deploy-pages can report success while Pages keeps serving the last build (2026-11-03). Deploy once more
-      # if the live site isn't this build; if it still isn't, the run fails and keeps the artifact.
+      # deploy-pages can fail to find the artifact that was uploaded a second earlier (2026-11-16: "Found 0
+      # artifact(s)"), and it can report success while Pages keeps serving the last build (2026-11-03). Either
+      # way, deploy once more; if that deploy or its live check fails too, the run fails and keeps the artifact.
+      - name: Deploy
+        id: deploy
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
       - name: Check the live site
         id: live
+        if: ${{ steps.deploy.outcome == 'success' }}
         continue-on-error: true
         run: python scripts/check_live.py
+      - name: Wait before deploying again
+        if: ${{ steps.deploy.outcome == 'failure' }}
+        run: sleep 30
       - name: Deploy again
-        if: ${{ steps.live.outcome == 'failure' }}
+        if: ${{ steps.deploy.outcome == 'failure' || steps.live.outcome == 'failure' }}
         uses: actions/deploy-pages@v4
       - name: Check the live site again
-        if: ${{ steps.live.outcome == 'failure' }}
+        if: ${{ steps.deploy.outcome == 'failure' || steps.live.outcome == 'failure' }}
         run: python scripts/check_live.py
 
       - name: Delete the Pages artifact
