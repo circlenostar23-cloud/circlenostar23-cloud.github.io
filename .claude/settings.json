@@ -1,13 +1,15 @@
 {
-  "extraKnownMarketplaces": {
-    "david-skills": {
-      "source": {
-        "source": "github",
-        "repo": "circlenostar23-cloud/claude-skills"
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; echo \"These are David's global rules, which apply in every project (the same file is ~/.claude/CLAUDE.md on his Mac):\"; curl -fsSL --max-time 8 https://raw.githubusercontent.com/circlenostar23-cloud/claude-skills/main/plugins/global-rules/RULES.md || echo \"GLOBAL RULES NOT LOADED: raw.githubusercontent.com could not be reached from this cloud session. Tell David.\"",
+            "timeout": 15
+          }
+        ]
       }
-    }
-  },
-  "enabledPlugins": {
-    "global-rules@david-skills": true
+    ]
   }
 }
