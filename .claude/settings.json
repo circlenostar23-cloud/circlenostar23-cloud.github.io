@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "david-skills": {
+      "source": {
+        "source": "github",
+        "repo": "circlenostar23-cloud/claude-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "global-rules@david-skills": true
+  }
+}
